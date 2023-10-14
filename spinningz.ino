@@ -8,6 +8,8 @@
 #include "pedal.h"
 #include "util.h"
 
+#include "emit-midi.h"
+
 static void beginWifi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -40,11 +42,13 @@ void setup() {
   beginWifi();
   beginSyslog();
   beginOta();
+  beginMidi();
 
   pinMode(LED_BUILTIN, OUTPUT);
 
   onPedalRevolution = pedalRevolutionHandler;
   beginPedal();
+  
 }
 
 static void heartbeat() {
@@ -60,7 +64,9 @@ static void heartbeat() {
 
   syslog.printf(FAC_USER, PRI_DEBUG, "Heartbeat: %d - averageBpm=%f sampleSize=%d", time, avgCadence, samples);
   Serial.printf("Heartbeat: %d - averageBpm=%f sampleSize=%d\n", time, avgCadence, samples);
-
+  
+  sendMidiControl();
+  
   digitalWrite(LED_BUILTIN, HIGH);
   delay(70);
   digitalWrite(LED_BUILTIN, LOW);
@@ -70,6 +76,7 @@ long lastHeartbeat = 0;
 
 void loop() {
   handleOta();
+  handleMidi();
 
   if (checkInterval(&lastHeartbeat, 3000) && !isOtaing) {
     heartbeat();
