@@ -25,10 +25,14 @@ static void beginWifi() {
 }
 
 // Emit MIDI update
+long maxBpm = 0;
 static void sendToMidiControl(long bpm) {
-  char pathStr[40];
-  sprintf(pathStr, "/tempo?bpm=%d", bpm);
-  syslog.printf(FAC_LOCAL0, PRI_INFO, "%d", bpm);
+  if (bpm > maxBpm) maxBpm = bpm;
+  
+  uint8_t midiControlValue = (int)(127.0 * (float)bpm / (float)maxBpm);
+  sendMidiControl(midiControlValue);
+
+  syslog.printf(FAC_LOCAL0, PRI_INFO, "bpm=%d,midicv=%d", bpm, midiControlValue);
 }
 
 void pedalRevolutionHandler(long timeSince, float cadence, float avgCadence) {
@@ -41,14 +45,25 @@ void setup() {
 
   beginWifi();
   beginSyslog();
-  beginOta();
-  beginMidi();
 
+  beginOta();
+
+  try {
+    beginMidi();
+  } catch(std::exception const & ex) {
+    syslog.printf(FAC_USER, PRI_ERROR, "MIDI setup failed: %s", ex.what());
+  } catch (...) {
+    syslog.printf(FAC_USER, PRI_ERROR, "MIDI setup failed (threw unknown)");
+  }
+
+  // LED for heartbeat blinks
   pinMode(LED_BUILTIN, OUTPUT);
 
+  // Pedal detection callback
   onPedalRevolution = pedalRevolutionHandler;
   beginPedal();
-  
+
+  sendMidiControl(64);
 }
 
 static void heartbeat() {
@@ -64,8 +79,6 @@ static void heartbeat() {
 
   syslog.printf(FAC_USER, PRI_DEBUG, "Heartbeat: %d - averageBpm=%f sampleSize=%d", time, avgCadence, samples);
   Serial.printf("Heartbeat: %d - averageBpm=%f sampleSize=%d\n", time, avgCadence, samples);
-  
-  sendMidiControl();
   
   digitalWrite(LED_BUILTIN, HIGH);
   delay(70);

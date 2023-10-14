@@ -4,13 +4,13 @@
 #include <AppleMIDI.h>
 
 #include "logging.h"
+#include "config.h"
 
 APPLEMIDI_CREATE_DEFAULTSESSION_INSTANCE(); 
 
 int8_t isConnected = 0;
 
 static void beginMidi() {
-  AppleMIDI.
   syslog.printf(FAC_USER, PRI_NOTICE, "AppleMIDI: IP=%s port=%d name=%s", WiFi.localIP(), AppleMIDI.getPort(), AppleMIDI.getName());
   
   MIDI.begin(); // listens on channel 1  
@@ -39,13 +39,8 @@ static void handleMidi() {
   MIDI.read();
 }
 
-static void sendMidiControl(/* todo */) {
+static void sendMidiControl(byte value) {
   if (isConnected <= 0) return;
 
-  byte note = 45;
-  byte velocity = 55;
-  byte channel = 1;
-
-  MIDI.sendNoteOn(note, velocity, channel);
-  MIDI.sendNoteOff(note, velocity, channel);
+  MIDI.sendControlChange(MidiControlChangeNumber::FootController, value, MIDI_CHANNEL);
 }
